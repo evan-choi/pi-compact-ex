@@ -1,0 +1,46 @@
+{
+  "name": "pi-compact-ex",
+  "version": "0.1.0",
+  "description": "Configure Pi auto-compaction using a context-window percentage threshold.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-coding-agent",
+    "compaction"
+  ],
+  "files": [
+    "index.ts",
+    "extension.mjs",
+    "threshold.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test *.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evan-choi/pi-compact-ex.git"
+  },
+  "homepage": "https://github.com/evan-choi/pi-compact-ex#readme",
+  "bugs": {
+    "url": "https://github.com/evan-choi/pi-compact-ex/issues"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

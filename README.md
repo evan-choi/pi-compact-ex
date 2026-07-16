@@ -1,60 +1,80 @@
 # pi-compact-ex
 
-Pi의 자동 compaction 시점을 context window 사용률로 설정하는 extension입니다. 기본 임계값은 90%이며, 현재 설정값을 footer의 `(auto N%)` 표시에 함께 보여줍니다.
+A Pi extension that triggers automatic context compaction at a configurable percentage of the model's context window.
+
+The default threshold is 90%. The active value appears in Pi's footer:
 
 ```text
 $6.773 (sub) 37.6%/372k (auto 90%)
 ```
 
-## 설치
+## Installation
 
-Pi의 전역 extension 디렉터리에 clone합니다.
+Install from npm:
 
 ```bash
-git clone git@github.com:evan-choi/pi-compact-ex.git \
-  ~/.pi/agent/extensions/pi-compact-ex
+pi install npm:pi-compact-ex
 ```
 
-실행 중인 Pi에서 extension을 다시 불러옵니다.
+Or install directly from GitHub:
+
+```bash
+pi install git:github.com/evan-choi/pi-compact-ex
+```
+
+If Pi is already running, reload its resources:
 
 ```text
 /reload
 ```
 
-## 사용법
+## Usage
 
-현재 임계값을 확인합니다.
+Show the current threshold:
 
 ```text
 /compact-threshold
 ```
 
-임계값을 85%로 변경합니다. `1`부터 `99`까지의 정수만 허용합니다.
+Set a new threshold:
 
 ```text
 /compact-threshold 85
 ```
 
-변경값은 즉시 footer에 반영되고 `config.json`에 저장됩니다. 이 파일은 repository에서 제외되며 모든 프로젝트에 동일하게 적용됩니다.
+The command accepts integers from `1` through `99`. Changes are persisted globally in `~/.pi/agent/pi-compact-ex.json` and reflected in the footer immediately.
 
-## 동작 방식
+## Behavior
 
-Extension은 각 `turn_end`에서 현재 context 사용률을 확인합니다. 설정한 임계값 이상이면 `ctx.compact()`를 호출하며, 동일한 turn에서 중복 compaction이 시작되지 않도록 막습니다.
+After every `turn_end`, the extension checks the current context-window usage. When usage reaches the configured threshold, it calls Pi's `ctx.compact()` API. Compaction starts after the current turn finishes, not while a response is streaming.
 
-Pi의 기본 threshold compaction만 대체합니다. 다음 동작은 그대로 유지됩니다.
+The extension replaces only Pi's built-in threshold-based trigger. It preserves:
 
-- context overflow 감지 및 복구
-- 수동 `/compact`
-- 기존 compaction summary 생성 방식
+- context-overflow recovery and retry
+- manual `/compact`
+- Pi's existing summary generation
 
-Compaction은 streaming 도중이 아니라 현재 turn이 끝난 뒤 실행됩니다.
+A compaction-in-progress guard prevents duplicate requests from the same agent run.
 
-## 개발 및 검증
+## Development
 
-외부 dependency 없이 Node.js 내장 test runner를 사용합니다.
+Requirements:
+
+- Node.js 22.19 or newer
+- Pi (tested with 0.80.7)
+
+Run the test suite:
 
 ```bash
-node --test *.test.mjs
+npm test
 ```
 
-Pi `0.80.7`에서 extension 로드, footer 즉시 갱신, 좁은 terminal에서의 line truncation을 확인했습니다.
+Test the extension from a local checkout:
+
+```bash
+pi -e ./index.ts
+```
+
+## License
+
+[MIT](LICENSE)

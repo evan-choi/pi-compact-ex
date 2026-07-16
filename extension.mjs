@@ -10,22 +10,42 @@ import {
 
 const DEFAULT_CONFIG_PATH = fileURLToPath(new URL("./config.json", import.meta.url));
 
-export function createExtension(configPath = DEFAULT_CONFIG_PATH, FooterComponent) {
+export function createExtension(configPath = DEFAULT_CONFIG_PATH, FooterComponent, truncateToWidth = (line) => line) {
 	return function (pi) {
 		let threshold = DEFAULT_THRESHOLD;
 		let compacting = false;
-		const originalFooterRender = FooterComponent?.prototype.render;
-		const decoratedFooterRender = originalFooterRender
-			? function (width) {
-				return originalFooterRender.call(this, width).map((line) =>
-					line.replace(" (auto)", ` (auto ${threshold}%)`),
-				);
-			}
-			: undefined;
 
-		if (decoratedFooterRender) {
-			FooterComponent.prototype.render = decoratedFooterRender;
-		}
+		const installFooter = (ctx) => {
+			if (!FooterComponent) {
+				return;
+			}
+
+			ctx.ui.setFooter((_tui, _theme, footerData) => {
+				const session = {
+					get state() {
+						return { model: ctx.model, thinkingLevel: pi.getThinkingLevel() };
+					},
+					get sessionManager() {
+						return ctx.sessionManager;
+					},
+					get modelRegistry() {
+						return ctx.modelRegistry;
+					},
+					getContextUsage: () => ctx.getContextUsage(),
+				};
+				const footer = new FooterComponent(session, footerData);
+				footer.setAutoCompactEnabled(true);
+
+				return {
+					render: (width) =>
+						footer
+							.render(width)
+							.map((line) => truncateToWidth(line.replace(" (auto)", ` (auto ${threshold}%)`), width, "")),
+					invalidate: () => footer.invalidate(),
+					dispose: () => footer.dispose(),
+				};
+			});
+		};
 
 		pi.on("session_start", async (_event, ctx) => {
 			compacting = false;
@@ -38,12 +58,7 @@ export function createExtension(configPath = DEFAULT_CONFIG_PATH, FooterComponen
 					ctx.ui.notify(`Invalid pi-compact-ex config: ${message}`, "warning");
 				}
 			}
-		});
-
-		pi.on("session_shutdown", () => {
-			if (decoratedFooterRender && FooterComponent.prototype.render === decoratedFooterRender) {
-				FooterComponent.prototype.render = originalFooterRender;
-			}
+			installFooter(ctx);
 		});
 
 		pi.on("session_before_compact", (event) => {
@@ -90,6 +105,7 @@ export function createExtension(configPath = DEFAULT_CONFIG_PATH, FooterComponen
 				try {
 					await saveThreshold(configPath, nextThreshold);
 					threshold = nextThreshold;
+					installFooter(ctx);
 					ctx.ui.notify(`Auto-compaction threshold: ${threshold}%`, "info");
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error);

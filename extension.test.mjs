@@ -99,3 +99,25 @@ test("잘못된 percentage는 거부한다", async () => {
 		level: "warning",
 	});
 });
+
+test("footer의 auto 표시에 설정된 percentage를 붙인다", async () => {
+	class Footer {
+		render() {
+			return ["$6.773 (sub) 37.6%/372k (auto)"];
+		}
+	}
+
+	const dir = await mkdtemp(join(tmpdir(), "pi-compact-ex-"));
+	const pi = createPi();
+	await createExtension(join(dir, "config.json"), Footer)(pi);
+	const ctx = createContext();
+	await pi.handlers.get("session_start")({}, ctx);
+
+	assert.deepEqual(new Footer().render(), ["$6.773 (sub) 37.6%/372k (auto 90%)"]);
+
+	await pi.commands.get("compact-threshold").handler("85", ctx);
+	assert.deepEqual(new Footer().render(), ["$6.773 (sub) 37.6%/372k (auto 85%)"]);
+
+	await pi.handlers.get("session_shutdown")();
+	assert.deepEqual(new Footer().render(), ["$6.773 (sub) 37.6%/372k (auto)"]);
+});

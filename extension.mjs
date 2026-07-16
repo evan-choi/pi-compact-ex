@@ -10,10 +10,22 @@ import {
 
 const DEFAULT_CONFIG_PATH = fileURLToPath(new URL("./config.json", import.meta.url));
 
-export function createExtension(configPath = DEFAULT_CONFIG_PATH) {
+export function createExtension(configPath = DEFAULT_CONFIG_PATH, FooterComponent) {
 	return function (pi) {
 		let threshold = DEFAULT_THRESHOLD;
 		let compacting = false;
+		const originalFooterRender = FooterComponent?.prototype.render;
+		const decoratedFooterRender = originalFooterRender
+			? function (width) {
+				return originalFooterRender.call(this, width).map((line) =>
+					line.replace(" (auto)", ` (auto ${threshold}%)`),
+				);
+			}
+			: undefined;
+
+		if (decoratedFooterRender) {
+			FooterComponent.prototype.render = decoratedFooterRender;
+		}
 
 		pi.on("session_start", async (_event, ctx) => {
 			compacting = false;
@@ -25,6 +37,12 @@ export function createExtension(configPath = DEFAULT_CONFIG_PATH) {
 					const message = error instanceof Error ? error.message : String(error);
 					ctx.ui.notify(`Invalid pi-compact-ex config: ${message}`, "warning");
 				}
+			}
+		});
+
+		pi.on("session_shutdown", () => {
+			if (decoratedFooterRender && FooterComponent.prototype.render === decoratedFooterRender) {
+				FooterComponent.prototype.render = originalFooterRender;
 			}
 		});
 
@@ -81,5 +99,3 @@ export function createExtension(configPath = DEFAULT_CONFIG_PATH) {
 		});
 	};
 }
-
-export default createExtension();

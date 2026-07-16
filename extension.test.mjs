@@ -18,30 +18,24 @@ function createPi() {
 		registerCommand(name, command) {
 			commands.set(name, command);
 		},
-		getThinkingLevel() {
-			return "xhigh";
-		},
 	};
 }
 
 function createContext(percent = 0) {
 	const notifications = [];
 	const compactCalls = [];
-	const footerFactories = [];
+	const statuses = [];
 	return {
 		notifications,
 		compactCalls,
-		footerFactories,
+		statuses,
 		hasUI: true,
-		model: { id: "test-model" },
-		modelRegistry: {},
-		sessionManager: {},
 		ui: {
 			notify(message, level) {
 				notifications.push({ message, level });
 			},
-			setFooter(factory) {
-				footerFactories.push(factory);
+			setStatus(key, value) {
+				statuses.push({ key, value });
 			},
 		},
 		getContextUsage() {
@@ -111,38 +105,39 @@ test("잘못된 percentage는 거부한다", async () => {
 	});
 });
 
-test("공식 custom footer로 설정된 percentage를 표시하고 즉시 갱신한다", async () => {
-	class Footer {
-		constructor(session) {
-			this.session = session;
-		}
-		setAutoCompactEnabled() {}
-		render() {
-			assert.equal(this.session.state.model.id, "test-model");
-			assert.equal(this.session.state.thinkingLevel, "xhigh");
-			assert.ok(this.session.sessionManager);
-			assert.ok(this.session.modelRegistry);
-			assert.deepEqual(this.session.getContextUsage(), { percent: 0 });
-			return ["$6.773 (sub) 37.6%/372k (auto)"];
-		}
-		invalidate() {}
-		dispose() {}
-	}
-
+test("설정된 percentage를 extension status에 표시하고 즉시 갱신한다", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "pi-compact-ex-"));
 	const pi = createPi();
-	await createExtension(join(dir, "config.json"), Footer, (line, width) => line.slice(0, width))(pi);
+	await createExtension(join(dir, "config.json"))(pi);
 	const ctx = createContext();
 	await pi.handlers.get("session_start")({}, ctx);
 
-	assert.equal(ctx.footerFactories.length, 1);
-	const initialFooter = ctx.footerFactories.at(-1)(null, null, {});
-	assert.deepEqual(initialFooter.render(120), ["$6.773 (sub) 37.6%/372k (auto 90%)"]);
-	assert.ok(initialFooter.render(32)[0].length <= 32);
+	assert.deepEqual(ctx.statuses.at(-1), {
+		key: "pi-compact-ex",
+		value: "compact 90%",
+	});
 
 	await pi.commands.get("compact-threshold").handler("85", ctx);
 
-	assert.equal(ctx.footerFactories.length, 2);
-	const updatedFooter = ctx.footerFactories.at(-1)(null, null, {});
-	assert.deepEqual(updatedFooter.render(120), ["$6.773 (sub) 37.6%/372k (auto 85%)"]);
+	assert.deepEqual(ctx.statuses.at(-1), {
+		key: "pi-compact-ex",
+		value: "compact 85%",
+	});
+});
+
+test("threshold 저장 실패 시 기존 status를 유지한다", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "pi-compact-ex-"));
+	const pi = createPi();
+	await createExtension(join(dir, "missing", "config.json"))(pi);
+	const ctx = createContext();
+	await pi.handlers.get("session_start")({}, ctx);
+
+	await pi.commands.get("compact-threshold").handler("85", ctx);
+
+	assert.equal(ctx.statuses.length, 1);
+	assert.deepEqual(ctx.statuses[0], {
+		key: "pi-compact-ex",
+		value: "compact 90%",
+	});
+	assert.equal(ctx.notifications.at(-1).level, "error");
 });

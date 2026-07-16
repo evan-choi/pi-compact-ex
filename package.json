@@ -1,6 +1,6 @@
 {
   "name": "pi-compact-ex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Configure Pi auto-compaction using a context-window percentage threshold.",
   "type": "module",
   "license": "MIT",

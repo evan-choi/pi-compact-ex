@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -93,9 +93,14 @@ test("slash command로 임계값을 전역 저장한다", async () => {
 	});
 });
 
-test("잘못된 percentage는 거부한다", async () => {
-	const pi = await setup();
+test("잘못된 percentage는 거부하고 기존 status를 유지한다", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "pi-compact-ex-"));
+	const pi = createPi();
+	await createExtension(join(dir, "config.json"))(pi);
 	const ctx = createContext();
+	await pi.handlers.get("session_start")({}, ctx);
+	const statusCallCount = ctx.statuses.length;
+	const status = ctx.statuses.at(-1);
 
 	await pi.commands.get("compact-threshold").handler("100", ctx);
 
@@ -103,6 +108,23 @@ test("잘못된 percentage는 거부한다", async () => {
 		message: "Usage: /compact-threshold <1-99>",
 		level: "warning",
 	});
+	assert.equal(ctx.statuses.length, statusCallCount);
+	assert.deepEqual(ctx.statuses.at(-1), status);
+	assert.deepEqual(status, { key: "pi-compact-ex", value: "compact 90%" });
+});
+
+test("잘못된 config는 경고하고 기본 status를 표시한다", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "pi-compact-ex-"));
+	const configPath = join(dir, "config.json");
+	await writeFile(configPath, "not json", "utf8");
+	const pi = createPi();
+	await createExtension(configPath)(pi);
+	const ctx = createContext();
+
+	await pi.handlers.get("session_start")({}, ctx);
+
+	assert.equal(ctx.notifications.at(-1).level, "warning");
+	assert.deepEqual(ctx.statuses, [{ key: "pi-compact-ex", value: "compact 90%" }]);
 });
 
 test("설정된 percentage를 extension status에 표시하고 즉시 갱신한다", async () => {

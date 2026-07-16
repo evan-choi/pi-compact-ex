@@ -2,10 +2,10 @@
 
 A Pi extension that triggers automatic context compaction at a configurable percentage of the model's context window.
 
-The default threshold is 90%. The active value appears in Pi's footer:
+The default threshold is 90%. The active value appears in Pi's extension status slot:
 
 ```text
-$6.773 (sub) 37.6%/372k (auto 90%)
+compact 90%
 ```
 
 ## Installation
@@ -42,7 +42,7 @@ Set a new threshold:
 /compact-threshold 85
 ```
 
-The command accepts integers from `1` through `99`. Changes are persisted globally in `~/.pi/agent/pi-compact-ex.json` and reflected in the footer immediately.
+The command accepts integers from `1` through `99`. Changes are persisted globally in `~/.pi/agent/pi-compact-ex.json` and reflected in the extension status immediately.
 
 ## Behavior
 
